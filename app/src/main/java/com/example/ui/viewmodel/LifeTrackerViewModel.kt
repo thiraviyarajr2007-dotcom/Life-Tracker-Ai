@@ -30,6 +30,8 @@ class LifeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         db.goalDao(),
         db.calendarDao(),
         db.userDao(),
+        db.userStatsDao(),
+        db.categoryDao(),
         GeminiApiService()
     )
 
@@ -41,10 +43,32 @@ class LifeTrackerViewModel(application: Application) : AndroidViewModel(applicat
     private val _isLoggedIn = MutableStateFlow(true)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    private val _userEmail = MutableStateFlow("alex.rivera@lifetracker.ai")
+    private val _userEmail = MutableStateFlow("user@gmail.com")
     val userEmail: StateFlow<String> = _userEmail.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            repository.clearFakeSeedData()
+        }
+    }
+
+    fun clearAllUserData() {
+        viewModelScope.launch {
+            repository.deleteAllUserData()
+        }
+    }
+
+    // Cloud Sync State
+    private val _syncStatus = MutableStateFlow("Synced") // "Idle", "Syncing", "Synced", "Error"
+    val syncStatus: StateFlow<String> = _syncStatus.asStateFlow()
+
+    private val _lastSyncedTimestamp = MutableStateFlow(System.currentTimeMillis())
+    val lastSyncedTimestamp: StateFlow<Long> = _lastSyncedTimestamp.asStateFlow()
+
     // Database Flows
+    val categories: StateFlow<List<CategoryEntity>> = repository.allCategories
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val tasks: StateFlow<List<TaskEntity>> = repository.allTasks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -75,12 +99,97 @@ class LifeTrackerViewModel(application: Application) : AndroidViewModel(applicat
     val userProfile: StateFlow<UserProfileEntity?> = repository.userProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val userStats: StateFlow<UserStatsEntity?> = repository.userStats
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    // HUD Notification State
+    private val _hudEvent = MutableStateFlow<com.example.ui.components.HudEvent?>(null)
+    val hudEvent: StateFlow<com.example.ui.components.HudEvent?> = _hudEvent.asStateFlow()
+
+    // Level Up Dialog State
+    private val _levelUpEvent = MutableStateFlow<Int?>(null)
+    val levelUpEvent: StateFlow<Int?> = _levelUpEvent.asStateFlow()
+
+    // Hunter Stats State
+    private val _hunterStats = MutableStateFlow(com.example.domain.model.HunterStats())
+    val hunterStats: StateFlow<com.example.domain.model.HunterStats> = _hunterStats.asStateFlow()
+
+    fun triggerHudAlert(title: String, subtitle: String, xpGained: Int = 0, isLevelUp: Boolean = false) {
+        _hudEvent.value = com.example.ui.components.HudEvent(
+            title = title,
+            subtitle = subtitle,
+            xpGained = xpGained,
+            isLevelUp = isLevelUp
+        )
+    }
+
+    fun dismissHudAlert() {
+        _hudEvent.value = null
+    }
+
+    fun clearLevelUpEvent() {
+        _levelUpEvent.value = null
+    }
+
+    fun allocateStatPoint(statName: String) {
+        val current = _hunterStats.value
+        if (current.unallocatedPoints <= 0) return
+        val updated = when (statName.uppercase()) {
+            "STR" -> current.copy(strength = current.strength + 1, unallocatedPoints = current.unallocatedPoints - 1)
+            "AGI" -> current.copy(agility = current.agility + 1, unallocatedPoints = current.unallocatedPoints - 1)
+            "INT" -> current.copy(intelligence = current.intelligence + 1, unallocatedPoints = current.unallocatedPoints - 1)
+            "VIT" -> current.copy(vitality = current.vitality + 1, unallocatedPoints = current.unallocatedPoints - 1)
+            "SNE" -> current.copy(sense = current.sense + 1, unallocatedPoints = current.unallocatedPoints - 1)
+            else -> current
+        }
+        _hunterStats.value = updated
+        triggerHudAlert("STAT POINT ALLOCATED", "$statName upgraded to ${when(statName.uppercase()) { "STR" -> updated.strength; "AGI" -> updated.agility; "INT" -> updated.intelligence; "VIT" -> updated.vitality; else -> updated.sense }}")
+    }
+
+    fun grantXp(xpAmount: Int, actionTitle: String = "Quest Cleared") {
+        viewModelScope.launch {
+            val current = userStats.value ?: UserStatsEntity()
+            val previousLevel = com.example.domain.model.GamificationProfile.calculateLevel(current.totalXp)
+            val newTotalXp = current.totalXp + xpAmount
+            val newLevel = com.example.domain.model.GamificationProfile.calculateLevel(newTotalXp)
+            
+            val levelUpOccurred = newLevel > previousLevel
+
+            val updatedStats = current.copy(
+                totalXp = newTotalXp,
+                level = newLevel,
+                coins = current.coins + (xpAmount / 5),
+                updatedAt = System.currentTimeMillis()
+            )
+            repository.updateUserStats(updatedStats)
+
+            if (levelUpOccurred) {
+                _hunterStats.value = _hunterStats.value.copy(
+                    unallocatedPoints = _hunterStats.value.unallocatedPoints + 3
+                )
+                _levelUpEvent.value = newLevel
+                triggerHudAlert(
+                    title = "LEVEL UP! REACHED LEVEL $newLevel",
+                    subtitle = com.example.domain.model.GamificationProfile.calculateLevelTitle(newLevel),
+                    xpGained = xpAmount,
+                    isLevelUp = true
+                )
+            } else {
+                triggerHudAlert(
+                    title = actionTitle,
+                    subtitle = "+$xpAmount XP Gained for System Progress",
+                    xpGained = xpAmount
+                )
+            }
+        }
+    }
+
     // AI Assistant State
     private val _aiChatMessages = MutableStateFlow<List<AiChatMessage>>(
         listOf(
             AiChatMessage(
                 sender = "Gemini",
-                text = "Hello Alex! 👋 I'm your Life Tracker AI Assistant. I can analyze your habits, health logs, expenses, and journal entries to give you actionable life optimizations. How can I help you today?"
+                text = "Hello! 👋 I'm your Life Tracker AI Assistant. I can analyze your habits, health logs, expenses, and journal entries to give you actionable life optimizations. How can I help you today?"
             )
         )
     )
@@ -99,6 +208,20 @@ class LifeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         _userEmail.value = email
         _isLoggedIn.value = true
         _currentModule.value = AppModule.DASHBOARD
+        triggerCloudSync()
+    }
+
+    fun triggerCloudSync() {
+        viewModelScope.launch {
+            _syncStatus.value = "Syncing"
+            val result = repository.syncUserCloudData(_userEmail.value)
+            if (result.isSuccess) {
+                _syncStatus.value = "Synced"
+                _lastSyncedTimestamp.value = System.currentTimeMillis()
+            } else {
+                _syncStatus.value = "Error"
+            }
+        }
     }
 
     fun logout() {
@@ -106,18 +229,41 @@ class LifeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         _currentModule.value = AppModule.AUTH
     }
 
+    // Category Actions
+    fun addCategory(name: String, colorHex: String = "#3B82F6", iconName: String = "Folder") {
+        viewModelScope.launch {
+            repository.insertCategory(CategoryEntity(name = name, colorHex = colorHex, iconName = iconName))
+        }
+    }
+
+    fun deleteCategory(category: CategoryEntity) {
+        viewModelScope.launch {
+            repository.deleteCategory(category)
+        }
+    }
+
     // Task Actions
-    fun addTask(title: String, category: String, priority: String, dueDate: Long) {
+    fun addTask(title: String, category: String, priority: String, dueDate: Long, categoryId: Long = 1L) {
         viewModelScope.launch {
             repository.insertTask(
-                TaskEntity(title = title, category = category, priority = priority, dueDate = dueDate)
+                TaskEntity(title = title, category = category, priority = priority, dueDate = dueDate, categoryId = categoryId)
             )
         }
     }
 
     fun toggleTaskCompletion(task: TaskEntity) {
         viewModelScope.launch {
-            repository.updateTask(task.copy(isCompleted = !task.isCompleted))
+            val newlyCompleted = !task.isCompleted
+            repository.updateTask(task.copy(isCompleted = newlyCompleted))
+            if (newlyCompleted) {
+                val xpGained = when (task.priority) {
+                    "High" -> 100
+                    "Medium" -> 50
+                    "Low" -> 25
+                    else -> 50
+                }
+                grantXp(xpGained, "Quest Cleared: \"${task.title}\"")
+            }
         }
     }
 
@@ -145,6 +291,10 @@ class LifeTrackerViewModel(application: Application) : AndroidViewModel(applicat
                     lastCompletedDate = if (newCompleted) System.currentTimeMillis() else habit.lastCompletedDate
                 )
             )
+            if (newCompleted) {
+                val xpGained = 50 + (newStreak * 5)
+                grantXp(xpGained, "Daily Duty Cleared: \"${habit.name}\"")
+            }
         }
     }
 

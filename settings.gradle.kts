@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Life Tracker AI"
+rootProject.name = "LifeOS AI"
 
 include(":app")

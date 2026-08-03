@@ -49,6 +49,27 @@ class FirestoreManager {
     }
 
     /**
+     * Upserts a document in a user-scoped Firestore collection for secure cloud sync.
+     */
+    fun saveUserDocument(userEmail: String, collectionName: String, documentId: String, data: Map<String, Any>) {
+        val sanitizedEmail = userEmail.replace(".", "_").replace("@", "_at_")
+        val path = "users/$sanitizedEmail/$collectionName"
+        db?.collection(path)
+            ?.document(documentId)
+            ?.set(data, SetOptions.merge())
+            ?.addOnSuccessListener {
+                Log.d("FirestoreManager", "Successfully synced $collectionName/$documentId for $userEmail")
+            }
+            ?.addOnFailureListener { e ->
+                Log.e("FirestoreManager", "Error syncing $collectionName/$documentId for $userEmail: ${e.message}")
+            }
+
+        // Also update standard top-level collection with userEmail tag
+        val dataWithUser = data + ("userEmail" to userEmail) + ("syncedAt" to System.currentTimeMillis())
+        saveDocument(collectionName, "${sanitizedEmail}_$documentId", dataWithUser)
+    }
+
+    /**
      * Upserts a document in a Firestore collection.
      */
     fun saveDocument(collectionName: String, documentId: String, data: Map<String, Any>) {

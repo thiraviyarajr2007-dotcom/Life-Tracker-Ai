@@ -14,8 +14,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import com.example.ui.components.AmbientBackground
 import com.example.ui.components.LifeTrackerBottomBar
 import com.example.ui.components.LifeTrackerDrawerContent
+import com.example.ui.components.QuickAddFab
 import com.example.ui.navigation.AppNavHost
 import com.example.ui.navigation.AppRouter
 import com.example.ui.navigation.rememberAppRouter
@@ -58,6 +62,9 @@ class MainActivity : ComponentActivity() {
             val goals by viewModel.goals.collectAsState()
             val calendarEvents by viewModel.calendarEvents.collectAsState()
             val userProfile by viewModel.userProfile.collectAsState()
+            val userStats by viewModel.userStats.collectAsState()
+            val hudEvent by viewModel.hudEvent.collectAsState()
+            val levelUpEvent by viewModel.levelUpEvent.collectAsState()
             val aiMessages by viewModel.aiChatMessages.collectAsState()
             val isAiLoading by viewModel.isAiLoading.collectAsState()
 
@@ -68,7 +75,7 @@ class MainActivity : ComponentActivity() {
                     AuthScreen(
                         onLoginSuccess = { email ->
                             viewModel.login(email)
-                            Toast.makeText(context, "Welcome to Life Tracker AI!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "System Reawakened: Welcome to LifeOS AI!", Toast.LENGTH_SHORT).show()
                         }
                     )
                 } else {
@@ -104,7 +111,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         ) { innerPadding ->
-                            Box(
+                            AmbientBackground(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(innerPadding)
@@ -147,6 +154,7 @@ class MainActivity : ComponentActivity() {
                                         appRouter = appRouter,
                                         viewModel = viewModel,
                                         userProfile = userProfile,
+                                        userStats = userStats,
                                         userEmail = userEmail,
                                         tasks = tasks,
                                         habits = habits,
@@ -161,6 +169,33 @@ class MainActivity : ComponentActivity() {
                                         isDarkMode = isDarkMode,
                                         context = context
                                     )
+
+                                    // Floating Expandable Quick Add FAB over all screens
+                                    QuickAddFab(
+                                        onAddTask = { title, cat, pri, due -> viewModel.addTask(title, cat, pri, due) },
+                                        onAddExpense = { title, amount, type, cat, notesStr -> viewModel.addExpense(title, amount, type, cat, notesStr) },
+                                        onAddHabit = { name, cat, freq -> viewModel.addHabit(name, cat, freq) },
+                                        onAddNote = { title, content, isChecklist, folder -> viewModel.addNote(title, content, isChecklist, folder) },
+                                        onAddGoal = { title, desc, cat, type, milestones -> viewModel.addGoal(title, desc, cat, type, milestones) },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 16.dp, end = 16.dp)
+                                    )
+
+                                    // Top Dynamic Island HUD Pill Banner
+                                    com.example.ui.components.HudNotificationPill(
+                                        hudEvent = hudEvent,
+                                        onDismiss = { viewModel.dismissHudAlert() },
+                                        modifier = Modifier.align(Alignment.TopCenter)
+                                    )
+
+                                    // Level Up Dialog Overlay
+                                    levelUpEvent?.let { newLevel ->
+                                        com.example.ui.components.LevelUpOverlay(
+                                            newLevel = newLevel,
+                                            onDismiss = { viewModel.clearLevelUpEvent() }
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -1,5 +1,5 @@
 {
-  "name": "Life Tracker AI",
+  "name": "LifeOS AI",
   "description": "All-in-one AI life tracker for tasks, habits, expenses, health, journal, goals, calendar, and AI assistant.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -22,15 +22,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entities.TaskEntity
 import com.example.data.local.entities.UserProfileEntity
+import com.example.data.local.entities.UserStatsEntity
 import com.example.domain.model.AppModule
 import com.example.ui.components.CircularProgressGauge
+import com.example.ui.components.GamificationCard
 import com.example.ui.components.GlassmorphicCard
+import com.example.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun DashboardScreen(
     userProfile: UserProfileEntity?,
+    userStats: UserStatsEntity? = null,
     tasks: List<TaskEntity>,
     expensesTotalToday: Double,
     waterIntakeMl: Int,
@@ -43,7 +47,15 @@ fun DashboardScreen(
     onToggleTask: (TaskEntity) -> Unit
 ) {
     val dateString = SimpleDateFormat("EEEE, MMM d, yyyy", Locale.getDefault()).format(Date())
-    val userName = userProfile?.name ?: "Alex"
+    val userName = userProfile?.name?.takeIf { it.isNotBlank() } ?: "User"
+
+    val totalTasksToday = tasks.size
+    val completedTasksToday = tasks.count { it.isCompleted }
+    val calculatedProgressPercent = if (totalTasksToday > 0) {
+        (completedTasksToday * 100 / totalTasksToday)
+    } else {
+        habitCompletionPercent
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -55,72 +67,180 @@ fun DashboardScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = if (isWideScreen) 24.dp else 18.dp),
+            contentPadding = PaddingValues(top = 20.dp, bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-            // Header Section
+            // Large Elegant Header Section
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = ElectricBlue.copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ElectricBlue.copy(alpha = 0.6f))
+                            ) {
+                                Text(
+                                    text = "SHADOW MONARCH SYSTEM",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = ElectricBlue,
+                                    letterSpacing = 1.5.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "S-RANK REAWAKENED",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentCyan
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Text(
-                            text = "Good day, $userName 👋",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
+                            text = "LifeOS AI",
+                            style = MaterialTheme.typography.displayLarge,
+                            color = Color.White
                         )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
                         Text(
-                            text = dateString,
+                            text = "Welcome Sovereign $userName • $dateString",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White.copy(alpha = 0.75f)
                         )
                     }
 
                     IconButton(
                         onClick = { onNavigate(AppModule.PROFILE) },
                         modifier = Modifier
-                            .size(48.dp)
+                            .padding(top = 8.dp)
+                            .size(52.dp)
                             .testTag("dashboard_profile_btn")
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(46.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.radialGradient(
+                                        colors = listOf(
+                                            ElectricBlue.copy(alpha = 0.4f),
+                                            Color(0xFF0A1025)
+                                        )
+                                    )
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.Person,
                                 contentDescription = "Profile",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = ElectricBlue
                             )
                         }
                     }
                 }
             }
 
-            // AI Assistant Insight Hero Banner
+            // Today's Progress Floating Glass Card
             item {
-                ElevatedCard(
+                GlassmorphicCard(
+                    cornerRadius = 28.dp,
+                    modifier = Modifier.testTag("todays_progress_card")
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Today's Progress",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Personal Productivity Matrix",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        CircularProgressGauge(
+                            progressPercent = calculatedProgressPercent,
+                            activeColor = AccentIndigo,
+                            modifier = Modifier.size(68.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("🔥 Habit Streak", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$habitStreakDays Days", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentEmerald)
+                        }
+                        Column {
+                            Text("📋 Tasks Left", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${tasks.count { !it.isCompleted }}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentIndigo)
+                        }
+                        Column {
+                            Text("💰 Expense", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$${String.format(Locale.getDefault(), "%.2f", expensesTotalToday)}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentCoral)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        val waterGlasses = waterIntakeMl / 250
+                        val waterTargetGlasses = (userProfile?.dailyWaterGoalMl ?: 2500) / 250
+                        Column {
+                            Text("💧 Water", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$waterGlasses / $waterTargetGlasses", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentCyan)
+                        }
+                        Column {
+                            Text("😴 Sleep", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${sleepHours} hrs", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentPurple)
+                        }
+                        Column {
+                            Text("⚡ Energy", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$calculatedProgressPercent%", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AccentEmerald)
+                        }
+                    }
+                }
+            }
+
+            // AI Assistant Insight Hero Banner Floating Glass Card
+            item {
+                GlassmorphicCard(
                     onClick = { onNavigate(AppModule.AI_ASSISTANT) },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("dashboard_ai_banner")
+                    cornerRadius = 28.dp,
+                    backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                    modifier = Modifier.testTag("dashboard_ai_banner")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -164,6 +284,19 @@ fun DashboardScreen(
                         )
                     }
                 }
+            }
+
+            // Gamification & Rewards Card
+            item {
+                val stats = userStats ?: UserStatsEntity()
+                GamificationCard(
+                    profile = com.example.domain.model.GamificationProfile(
+                        totalXp = stats.totalXp,
+                        coins = stats.coins,
+                        streakDays = habitStreakDays
+                    ),
+                    onViewAllBadges = { onNavigate(AppModule.PROFILE) }
+                )
             }
 
             // Overview Section Header

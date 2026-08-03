@@ -3,22 +3,27 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Outer Glowing Ring -->
+    <!-- Cyber HUD Tech Rings -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#8000E5FF"
-        android:strokeWidth="3"
-        android:pathData="M 54,24 A 30,30 0 1,0 84,54" />
-    <!-- AI Spark Lotus Emblem -->
-    <path
-        android:fillColor="#FF00E5FF"
-        android:pathData="M54,28 C56,38 64,46 74,48 C64,50 56,58 54,68 C52,58 44,50 34,48 C44,46 52,38 54,28 Z" />
-    <!-- Heartbeat Pulse Line -->
+        android:strokeWidth="2"
+        android:pathData="M 54,20 A 34,34 0 1,0 88,54" />
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#FFFF4081"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M30,68 L42,68 L47,58 L52,78 L58,62 L64,68 L78,68" />
+        android:strokeColor="#807C3AED"
+        android:strokeWidth="1.5"
+        android:pathData="M 22,54 A 32,32 0 0,1 54,22" />
+    <!-- Shadow Monarch Crown / Crest -->
+    <path
+        android:fillColor="#FF00E5FF"
+        android:pathData="M 54,28 L 62,42 L 74,34 L 68,58 L 54,68 L 40,58 L 34,34 L 46,42 Z" />
+    <!-- Glowing Center Gem -->
+    <path
+        android:fillColor="#FF7C3AED"
+        android:pathData="M 54,42 L 60,50 L 54,58 L 48,50 Z" />
+    <!-- HUD Accent Dots -->
+    <path
+        android:fillColor="#FF00E5FF"
+        android:pathData="M 54,22 A 2,2 0 1,0 54,26 A 2,2 0 1,0 54,22 Z M 86,54 A 2,2 0 1,0 86,58 A 2,2 0 1,0 86,54 Z M 22,54 A 2,2 0 1,0 22,58 A 2,2 0 1,0 22,54 Z" />
 </vector>

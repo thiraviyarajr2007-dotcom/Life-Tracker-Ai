@@ -1,9 +1,12 @@
 package com.example.ui.screens.tasks
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -15,13 +18,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entities.TaskEntity
 import com.example.ui.components.GlassmorphicCard
+import com.example.ui.theme.AccentEmerald
+import com.example.ui.theme.AccentIndigo
+import com.example.ui.theme.AccentCoral
+import com.example.ui.theme.AccentCyan
+import kotlin.random.Random
 
 data class CategoryOption(
     val name: String,
@@ -201,39 +212,11 @@ fun TaskScreen(
                     contentPadding = PaddingValues(bottom = 100.dp)
                 ) {
                     items(filteredTasks, key = { it.id }) { task ->
-                        GlassmorphicCard {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Checkbox(
-                                    checked = task.isCompleted,
-                                    onCheckedChange = { onToggleTask(task) },
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = task.title,
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        PriorityBadge(priority = task.priority)
-                                        CategoryBadge(category = task.category)
-                                    }
-                                }
-                                IconButton(onClick = { onDeleteTask(task) }) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete Task",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                        }
+                        AnimatedTaskItemCard(
+                            task = task,
+                            onToggleTask = onToggleTask,
+                            onDeleteTask = onDeleteTask
+                        )
                     }
                 }
             }
@@ -419,5 +402,105 @@ private fun AddTaskDialog(
             }
         }
     )
+}
+
+@Composable
+fun AnimatedTaskItemCard(
+    task: TaskEntity,
+    onToggleTask: (TaskEntity) -> Unit,
+    onDeleteTask: (TaskEntity) -> Unit
+) {
+    var triggerConfetti by remember { mutableStateOf(false) }
+
+    // Card scale animation (shrinks slightly then bounces back when clicked/completed)
+    val cardScale by animateFloatAsState(
+        targetValue = if (triggerConfetti) 0.96f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        finishedListener = { triggerConfetti = false },
+        label = "cardScale"
+    )
+
+    val confettiProgress by animateFloatAsState(
+        targetValue = if (triggerConfetti) 1f else 0f,
+        animationSpec = tween(durationMillis = 600, easing = FastOutLinearInEasing),
+        label = "confetti"
+    )
+
+    GlassmorphicCard(
+        modifier = Modifier
+            .scale(cardScale)
+            .testTag("task_item_${task.id}")
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Checkbox(
+                        checked = task.isCompleted,
+                        onCheckedChange = {
+                            if (!task.isCompleted) {
+                                triggerConfetti = true
+                            }
+                            onToggleTask(task)
+                        },
+                        modifier = Modifier.size(40.dp)
+                    )
+
+                    // Confetti burst particles when checked!
+                    if (confettiProgress > 0f && confettiProgress < 1f) {
+                        Canvas(modifier = Modifier.size(60.dp)) {
+                            val colors = listOf(AccentEmerald, AccentCoral, AccentCyan, AccentIndigo, Color(0xFFFFD54F))
+                            val particles = 10
+                            for (i in 0 until particles) {
+                                val angle = (i * (360f / particles)) * (Math.PI / 180f)
+                                val distance = 28.dp.toPx() * confettiProgress
+                                val x = (center.x + Math.cos(angle) * distance).toFloat()
+                                val y = (center.y + Math.sin(angle) * distance).toFloat()
+                                val particleColor = colors[i % colors.size]
+                                val alpha = (1f - confettiProgress).coerceIn(0f, 1f)
+                                drawCircle(
+                                    color = particleColor.copy(alpha = alpha),
+                                    radius = 3.dp.toPx() * (1f - confettiProgress * 0.5f),
+                                    center = Offset(x, y)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = task.title,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PriorityBadge(priority = task.priority)
+                        CategoryBadge(category = task.category)
+                    }
+                }
+
+                IconButton(onClick = { onDeleteTask(task) }) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete Task",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+    }
 }
 

@@ -16,9 +16,16 @@ class LifeTrackerRepository(
     private val goalDao: GoalDao,
     private val calendarDao: CalendarDao,
     private val userDao: UserDao,
+    private val userStatsDao: UserStatsDao,
+    private val categoryDao: CategoryDao? = null,
     private val geminiApiService: GeminiApiService,
     private val firestoreManager: FirestoreManager = FirestoreManager()
 ) {
+    // Categories
+    val allCategories: Flow<List<CategoryEntity>> = categoryDao?.getAllCategories() ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    suspend fun insertCategory(category: CategoryEntity): Long = categoryDao?.insertCategory(category) ?: 0L
+    suspend fun deleteCategory(category: CategoryEntity) { categoryDao?.deleteCategory(category) }
+
     // Tasks
     val allTasks: Flow<List<TaskEntity>> = taskDao.getAllTasks()
     suspend fun insertTask(task: TaskEntity): Long {
@@ -27,6 +34,7 @@ class LifeTrackerRepository(
         firestoreManager.saveDocument("tasks", entityWithId.id.toString(), mapOf(
             "title" to entityWithId.title,
             "category" to entityWithId.category,
+            "categoryId" to entityWithId.categoryId,
             "priority" to entityWithId.priority,
             "isCompleted" to entityWithId.isCompleted,
             "dueDate" to entityWithId.dueDate
@@ -254,6 +262,163 @@ class LifeTrackerRepository(
             "dailyWaterGoalMl" to profile.dailyWaterGoalMl,
             "isDarkMode" to profile.isDarkMode
         ))
+    }
+
+    // User Gamification Stats
+    val userStats: Flow<UserStatsEntity?> = userStatsDao.getUserStats()
+    suspend fun updateUserStats(stats: UserStatsEntity) {
+        userStatsDao.insertOrUpdateUserStats(stats)
+        firestoreManager.saveDocument("user_stats", stats.id.toString(), mapOf(
+            "totalXp" to stats.totalXp,
+            "level" to stats.level,
+            "coins" to stats.coins,
+            "streakDays" to stats.streakDays,
+            "updatedAt" to stats.updatedAt
+        ))
+    }
+
+    /**
+     * Performs a full secure sync of all local user data with Firebase Firestore for the authenticated Google user.
+     */
+    suspend fun syncUserCloudData(userEmail: String): Result<Unit> {
+        return try {
+            val tasksList = taskDao.getAllTasksList()
+            tasksList.forEach { task ->
+                firestoreManager.saveUserDocument(userEmail, "tasks", task.id.toString(), mapOf(
+                    "title" to task.title,
+                    "category" to task.category,
+                    "priority" to task.priority,
+                    "isCompleted" to task.isCompleted,
+                    "dueDate" to task.dueDate
+                ))
+            }
+
+            val habitsList = habitDao.getAllHabitsList()
+            habitsList.forEach { habit ->
+                firestoreManager.saveUserDocument(userEmail, "habits", habit.id.toString(), mapOf(
+                    "name" to habit.name,
+                    "category" to habit.category,
+                    "frequency" to habit.frequency,
+                    "streakCount" to habit.streakCount,
+                    "isCompletedToday" to habit.isCompletedToday
+                ))
+            }
+
+            val expensesList = expenseDao.getAllExpensesList()
+            expensesList.forEach { exp ->
+                firestoreManager.saveUserDocument(userEmail, "expenses", exp.id.toString(), mapOf(
+                    "title" to exp.title,
+                    "amount" to exp.amount,
+                    "type" to exp.type,
+                    "category" to exp.category,
+                    "notes" to exp.notes,
+                    "date" to exp.date
+                ))
+            }
+
+            val healthLogs = healthDao.getAllHealthLogsList()
+            healthLogs.forEach { hl ->
+                firestoreManager.saveUserDocument(userEmail, "health_logs", hl.id.toString(), mapOf(
+                    "waterIntakeMl" to hl.waterIntakeMl,
+                    "sleepHours" to hl.sleepHours,
+                    "stepsCount" to hl.stepsCount,
+                    "mood" to hl.mood,
+                    "workoutDurationMins" to hl.workoutDurationMins,
+                    "date" to hl.date
+                ))
+            }
+
+            val profile = userDao.getUserProfileSingle() ?: UserProfileEntity(email = userEmail)
+            userDao.insertOrUpdateUserProfile(profile.copy(email = userEmail))
+            firestoreManager.saveUserDocument(userEmail, "profile", "user_profile", mapOf(
+                "name" to profile.name,
+                "email" to userEmail,
+                "monthlyBudget" to profile.monthlyBudget,
+                "dailyWaterGoalMl" to profile.dailyWaterGoalMl,
+                "isDarkMode" to profile.isDarkMode,
+                "syncedAt" to System.currentTimeMillis()
+            ))
+
+            val stats = userStatsDao.getUserStatsSingle() ?: UserStatsEntity()
+            firestoreManager.saveUserDocument(userEmail, "stats", "user_stats", mapOf(
+                "totalXp" to stats.totalXp,
+                "level" to stats.level,
+                "coins" to stats.coins,
+                "streakDays" to stats.streakDays,
+                "updatedAt" to stats.updatedAt
+            ))
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("LifeTrackerRepository", "Error syncing user cloud data: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteAllUserData() {
+        taskDao.deleteAllTasks()
+        habitDao.deleteAllHabits()
+        expenseDao.deleteAllExpenses()
+        healthDao.deleteAllHealthLogs()
+        journalDao.deleteAllJournalEntries()
+        noteDao.deleteAllNotes()
+        goalDao.deleteAllGoals()
+        calendarDao.deleteAllEvents()
+
+        userStatsDao.insertOrUpdateUserStats(
+            UserStatsEntity(id = 1, totalXp = 0, level = 1, coins = 0, streakDays = 0)
+        )
+    }
+
+    suspend fun clearFakeSeedData() {
+        taskDao.getAllTasksList().filter {
+            it.title.contains("Review Weekly Life Goals") ||
+            it.title.contains("Upper Body HIIT") ||
+            it.title.contains("Atomic Habits") ||
+            it.title.contains("Hydrate 2.5 Liters") ||
+            it.title.contains("AI Spending Analysis")
+        }.forEach { taskDao.deleteTask(it) }
+
+        habitDao.getAllHabitsList().filter {
+            it.name.contains("Mindfulness Meditation") ||
+            it.name.contains("Drink 250ml Water") ||
+            it.name.contains("30 Mins Daily Reading") ||
+            it.name.contains("No Sugar After") ||
+            it.name.contains("Weekly Budget Review")
+        }.forEach { habitDao.deleteHabit(it) }
+
+        expenseDao.getAllExpensesList().filter {
+            it.title.contains("Organic Grocery") ||
+            it.title.contains("Gym Membership") ||
+            it.title.contains("Freelance UX") ||
+            it.title.contains("Coffee & Bakery") ||
+            it.title.contains("Metro Transit")
+        }.forEach { expenseDao.deleteExpense(it) }
+
+        journalDao.getAllJournalEntriesList().filter {
+            it.title.contains("Reflections on Productivity") ||
+            it.title.contains("Evening Gratitude")
+        }.forEach { journalDao.deleteJournalEntry(it) }
+
+        noteDao.getAllNotesList().filter {
+            it.title.contains("High Performance Morning Routine") ||
+            it.title.contains("Healthy Grocery Checklist")
+        }.forEach { noteDao.deleteNote(it) }
+
+        goalDao.getAllGoalsList().filter {
+            it.title.contains("Complete AI Life Tracker") ||
+            it.title.contains("Run a Full Marathon")
+        }.forEach { goalDao.deleteGoal(it) }
+
+        calendarDao.getAllEventsList().filter {
+            it.title.contains("Design System Review") ||
+            it.title.contains("Mom's Birthday")
+        }.forEach { calendarDao.deleteEvent(it) }
+
+        val p = userDao.getUserProfileSingle()
+        if (p?.name == "Alex Rivera") {
+            userDao.insertOrUpdateUserProfile(p.copy(name = "User", email = ""))
+        }
     }
 
     // Gemini AI helper

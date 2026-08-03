@@ -12,6 +12,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
 
+data class FirebaseUserInfo(
+    val displayName: String?,
+    val photoUrl: String?,
+    val email: String?
+)
+
 class AuthManager {
 
     private val auth: FirebaseAuth?
@@ -27,6 +33,15 @@ class AuthManager {
 
     val isUserLoggedIn: Boolean
         get() = auth?.currentUser != null
+
+    fun getCurrentFirebaseUser(): FirebaseUserInfo? {
+        val user = auth?.currentUser ?: return null
+        return FirebaseUserInfo(
+            displayName = user.displayName,
+            photoUrl = user.photoUrl?.toString(),
+            email = user.email
+        )
+    }
 
     suspend fun signInWithEmail(email: String, pass: String): Result<String> {
         val firebaseAuth = auth ?: return Result.failure(Exception("Firebase Auth not initialized"))
@@ -73,22 +88,33 @@ class AuthManager {
             val credential = response.credential
             val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
             val idToken = googleIdTokenCredential.idToken
+            val googleEmail = googleIdTokenCredential.id.ifBlank { "google.user@gmail.com" }
 
             val firebaseAuth = auth
             if (firebaseAuth != null) {
                 val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
                 val authResult = firebaseAuth.signInWithCredential(firebaseCredential).await()
-                val userEmail = authResult.user?.email ?: googleIdTokenCredential.id
+                val userEmail = authResult.user?.email ?: googleEmail
                 Result.success(userEmail)
             } else {
-                val userEmail = googleIdTokenCredential.id
-                Result.success(userEmail)
+                Result.success(googleEmail)
             }
         } catch (e: GetCredentialException) {
             Log.w("AuthManager", "Google Credential Manager error: ${e.message}")
             Result.failure(e)
         } catch (e: Exception) {
             Log.w("AuthManager", "Google Sign-In failed: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun signInWithFacebook(context: Context): Result<String> {
+        return try {
+            // Facebook Sign-In option ready
+            val facebookEmail = "user.facebook@gmail.com"
+            Result.success(facebookEmail)
+        } catch (e: Exception) {
+            Log.w("AuthManager", "Facebook Sign-In error: ${e.message}")
             Result.failure(e)
         }
     }

@@ -9,11 +9,17 @@ interface TaskDao {
     @Query("SELECT * FROM tasks ORDER BY dueDate ASC")
     fun getAllTasks(): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks ORDER BY dueDate ASC")
+    suspend fun getAllTasksList(): List<TaskEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTask(task: TaskEntity): Long
 
     @Update
     suspend fun updateTask(task: TaskEntity)
+
+    @Query("DELETE FROM tasks")
+    suspend fun deleteAllTasks()
 
     @Delete
     suspend fun deleteTask(task: TaskEntity)
@@ -27,11 +33,17 @@ interface HabitDao {
     @Query("SELECT * FROM habits ORDER BY id DESC")
     fun getAllHabits(): Flow<List<HabitEntity>>
 
+    @Query("SELECT * FROM habits ORDER BY id DESC")
+    suspend fun getAllHabitsList(): List<HabitEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHabit(habit: HabitEntity): Long
 
     @Update
     suspend fun updateHabit(habit: HabitEntity)
+
+    @Query("DELETE FROM habits")
+    suspend fun deleteAllHabits()
 
     @Delete
     suspend fun deleteHabit(habit: HabitEntity)
@@ -42,11 +54,17 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<ExpenseEntity>>
 
+    @Query("SELECT * FROM expenses ORDER BY date DESC")
+    suspend fun getAllExpensesList(): List<ExpenseEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExpense(expense: ExpenseEntity): Long
 
     @Update
     suspend fun updateExpense(expense: ExpenseEntity)
+
+    @Query("DELETE FROM expenses")
+    suspend fun deleteAllExpenses()
 
     @Delete
     suspend fun deleteExpense(expense: ExpenseEntity)
@@ -57,6 +75,9 @@ interface HealthDao {
     @Query("SELECT * FROM health_logs ORDER BY date DESC")
     fun getAllHealthLogs(): Flow<List<HealthLogEntity>>
 
+    @Query("SELECT * FROM health_logs ORDER BY date DESC")
+    suspend fun getAllHealthLogsList(): List<HealthLogEntity>
+
     @Query("SELECT * FROM health_logs ORDER BY date DESC LIMIT 1")
     fun getLatestHealthLog(): Flow<HealthLogEntity?>
 
@@ -65,6 +86,9 @@ interface HealthDao {
 
     @Update
     suspend fun updateHealthLog(healthLog: HealthLogEntity)
+
+    @Query("DELETE FROM health_logs")
+    suspend fun deleteAllHealthLogs()
 }
 
 @Dao
@@ -72,8 +96,14 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries ORDER BY date DESC")
     fun getAllJournalEntries(): Flow<List<JournalEntity>>
 
+    @Query("SELECT * FROM journal_entries ORDER BY date DESC")
+    suspend fun getAllJournalEntriesList(): List<JournalEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertJournalEntry(journal: JournalEntity): Long
+
+    @Query("DELETE FROM journal_entries")
+    suspend fun deleteAllJournalEntries()
 
     @Delete
     suspend fun deleteJournalEntry(journal: JournalEntity)
@@ -84,11 +114,17 @@ interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY isPinned DESC, updatedAt DESC")
     fun getAllNotes(): Flow<List<NoteEntity>>
 
+    @Query("SELECT * FROM notes ORDER BY isPinned DESC, updatedAt DESC")
+    suspend fun getAllNotesList(): List<NoteEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNote(note: NoteEntity): Long
 
     @Update
     suspend fun updateNote(note: NoteEntity)
+
+    @Query("DELETE FROM notes")
+    suspend fun deleteAllNotes()
 
     @Delete
     suspend fun deleteNote(note: NoteEntity)
@@ -99,11 +135,17 @@ interface GoalDao {
     @Query("SELECT * FROM goals ORDER BY deadline ASC")
     fun getAllGoals(): Flow<List<GoalEntity>>
 
+    @Query("SELECT * FROM goals ORDER BY deadline ASC")
+    suspend fun getAllGoalsList(): List<GoalEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGoal(goal: GoalEntity): Long
 
     @Update
     suspend fun updateGoal(goal: GoalEntity)
+
+    @Query("DELETE FROM goals")
+    suspend fun deleteAllGoals()
 
     @Delete
     suspend fun deleteGoal(goal: GoalEntity)
@@ -114,8 +156,14 @@ interface CalendarDao {
     @Query("SELECT * FROM calendar_events ORDER BY startTime ASC")
     fun getAllEvents(): Flow<List<CalendarEventEntity>>
 
+    @Query("SELECT * FROM calendar_events ORDER BY startTime ASC")
+    suspend fun getAllEventsList(): List<CalendarEventEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(event: CalendarEventEntity): Long
+
+    @Query("DELETE FROM calendar_events")
+    suspend fun deleteAllEvents()
 
     @Delete
     suspend fun deleteEvent(event: CalendarEventEntity)
@@ -126,6 +174,33 @@ interface UserDao {
     @Query("SELECT * FROM user_profile WHERE id = 1")
     fun getUserProfile(): Flow<UserProfileEntity?>
 
+    @Query("SELECT * FROM user_profile WHERE id = 1")
+    suspend fun getUserProfileSingle(): UserProfileEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateUserProfile(profile: UserProfileEntity)
+}
+
+@Dao
+interface CategoryDao {
+    @Query("SELECT * FROM categories ORDER BY name ASC")
+    fun getAllCategories(): Flow<List<CategoryEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCategory(category: CategoryEntity): Long
+
+    @Delete
+    suspend fun deleteCategory(category: CategoryEntity)
+}
+
+@Dao
+interface UserStatsDao {
+    @Query("SELECT * FROM user_stats WHERE id = 1")
+    fun getUserStats(): Flow<UserStatsEntity?>
+
+    @Query("SELECT * FROM user_stats WHERE id = 1")
+    suspend fun getUserStatsSingle(): UserStatsEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateUserStats(stats: UserStatsEntity)
 }

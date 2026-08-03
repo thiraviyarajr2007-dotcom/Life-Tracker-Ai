@@ -3,6 +3,8 @@ package com.example.ui.navigation
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,11 +27,18 @@ import com.example.ui.screens.tasks.TaskScreen
 import com.example.ui.viewmodel.AiChatMessage
 import com.example.ui.viewmodel.LifeTrackerViewModel
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
+
 @Composable
 fun AppNavHost(
     appRouter: AppRouter,
     viewModel: LifeTrackerViewModel,
     userProfile: UserProfileEntity?,
+    userStats: UserStatsEntity? = null,
     userEmail: String,
     tasks: List<TaskEntity>,
     habits: List<HabitEntity>,
@@ -48,6 +57,10 @@ fun AppNavHost(
     NavHost(
         navController = appRouter.navController,
         startDestination = AppRouter.routeForModule(AppModule.DASHBOARD),
+        enterTransition = { fadeIn(animationSpec = tween(280)) + slideInHorizontally(animationSpec = tween(280)) { it / 6 } },
+        exitTransition = { fadeOut(animationSpec = tween(200)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(280)) + slideInHorizontally(animationSpec = tween(280)) { -it / 6 } },
+        popExitTransition = { fadeOut(animationSpec = tween(200)) },
         modifier = modifier
     ) {
         // Dashboard Screen
@@ -66,6 +79,7 @@ fun AppNavHost(
 
             DashboardScreen(
                 userProfile = userProfile,
+                userStats = userStats,
                 tasks = tasks.filter { !it.isCompleted },
                 expensesTotalToday = expensesToday,
                 waterIntakeMl = latestHealth?.waterIntakeMl ?: 0,
@@ -223,6 +237,10 @@ fun AppNavHost(
             AIAssistantScreen(
                 chatMessages = aiMessages,
                 isLoading = isAiLoading,
+                tasks = tasks,
+                habits = habits,
+                expenses = expenses,
+                userProfile = userProfile,
                 onSendMessage = { prompt -> viewModel.sendMessageToAi(prompt) }
             )
         }
@@ -249,12 +267,15 @@ fun AppNavHost(
             route = AppRouter.routeForModule(AppModule.SETTINGS),
             deepLinks = AppRouter.createDeepLinks(AppRouter.routeForModule(AppModule.SETTINGS))
         ) {
+            val syncStatus by viewModel.syncStatus.collectAsState()
             SettingsScreen(
                 isDarkMode = isDarkMode,
+                userEmail = userEmail,
+                syncStatus = syncStatus,
                 onToggleDarkMode = { dark ->
                     viewModel.updateProfileNameAndGoal(
-                        name = userProfile?.name ?: "Alex Rivera",
-                        budget = userProfile?.monthlyBudget ?: 3500.0,
+                        name = userProfile?.name ?: "User",
+                        budget = userProfile?.monthlyBudget ?: 2000.0,
                         waterGoal = userProfile?.dailyWaterGoalMl ?: 2500,
                         darkMode = dark
                     )
@@ -264,6 +285,14 @@ fun AppNavHost(
                 },
                 onRestoreData = {
                     Toast.makeText(context, "Data restored from backup!", Toast.LENGTH_SHORT).show()
+                },
+                onTriggerCloudSync = {
+                    viewModel.triggerCloudSync()
+                    Toast.makeText(context, "Syncing data with Google Account... ☁️", Toast.LENGTH_SHORT).show()
+                },
+                onClearAllData = {
+                    viewModel.clearAllUserData()
+                    Toast.makeText(context, "All data deleted. Application reset to fresh state.", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -273,12 +302,16 @@ fun AppNavHost(
             route = AppRouter.routeForModule(AppModule.PROFILE),
             deepLinks = AppRouter.createDeepLinks(AppRouter.routeForModule(AppModule.PROFILE))
         ) {
+            val hunterStats by viewModel.hunterStats.collectAsState()
             ProfileScreen(
                 userProfile = userProfile,
                 userEmail = userEmail,
+                userStats = userStats,
+                hunterStats = hunterStats,
+                onAllocateStatPoint = { statName -> viewModel.allocateStatPoint(statName) },
                 onSaveProfile = { name, budget, waterGoal ->
                     viewModel.updateProfileNameAndGoal(name, budget, waterGoal, isDarkMode)
-                    Toast.makeText(context, "Profile updated! ✨", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "System configuration updated! ✨", Toast.LENGTH_SHORT).show()
                 },
                 onLogout = { viewModel.logout() }
             )

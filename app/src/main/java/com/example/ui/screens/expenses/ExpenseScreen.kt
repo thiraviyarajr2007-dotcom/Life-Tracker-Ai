@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -116,33 +118,146 @@ fun ExpenseScreen(
                 }
             }
 
-            // Spending Visualizer (Pie Chart)
+            // Spending Data Visualization (Monthly Category Breakdown)
             if (expenseSlices.isNotEmpty()) {
                 item {
-                    GlassmorphicCard {
-                        Text("Category Breakdown", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Spacer(modifier = Modifier.height(12.dp))
+                    GlassmorphicCard(
+                        modifier = Modifier.testTag("expense_category_chart_card")
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text("Monthly Category Breakdown", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("Category distribution from Room DB", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                shape = MaterialTheme.shapes.small
+                            ) {
+                                Text(
+                                    text = "${expenseSlices.size} Categories",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Donut Chart with Center Total Summary
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceAround,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            CustomPieChart(slices = expenseSlices, modifier = Modifier.size(130.dp))
+                            CustomPieChart(
+                                slices = expenseSlices,
+                                modifier = Modifier.size(140.dp),
+                                strokeWidth = 18.dp,
+                                centerContent = {
+                                    Text("Total", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        text = String.format(Locale.getDefault(), "$%.0f", totalExpense),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            )
 
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                expenseSlices.take(4).forEach { slice ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Surface(
-                                            color = slice.color,
-                                            shape = MaterialTheme.shapes.small,
-                                            modifier = Modifier.size(12.dp)
-                                        ) {}
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("${slice.category}: $${slice.value.toInt()}", fontSize = 12.sp)
+                            // Quick Category Badges
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(start = 12.dp)
+                            ) {
+                                expenseSlices.take(5).forEach { slice ->
+                                    val percent = if (totalExpense > 0) (slice.value / totalExpense * 100).toInt() else 0
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.widthIn(min = 130.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Surface(
+                                                color = slice.color,
+                                                shape = CircleShape,
+                                                modifier = Modifier.size(10.dp)
+                                            ) {}
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = slice.category,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Text(
+                                            text = "$percent%",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = slice.color
+                                        )
                                     }
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Category Breakdown Progress Bars
+                        Text("Detailed Category Spending", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            expenseSlices.forEach { slice ->
+                                val fraction = if (totalExpense > 0) (slice.value / totalExpense).toFloat().coerceIn(0.02f, 1f) else 0f
+                                val percent = (fraction * 100).toInt()
+
+                                Column {
+                                    Row(
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(slice.category, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                        Text(
+                                            text = String.format(Locale.getDefault(), "$%.2f (%d%%)", slice.value, percent),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = slice.color
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    LinearProgressIndicator(
+                                        progress = { fraction },
+                                        color = slice.color,
+                                        trackColor = slice.color.copy(alpha = 0.15f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(6.dp)
+                                            .clip(CircleShape)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Monthly Category Comparison Bar Chart
+                        val barDataPoints = expenseSlices.map { Pair(it.category.take(4), it.value.toFloat()) }
+                        Text("Category Comparison Bar Chart", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CustomBarChart(
+                            dataPoints = barDataPoints,
+                            barColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().height(110.dp)
+                        )
                     }
                 }
             }

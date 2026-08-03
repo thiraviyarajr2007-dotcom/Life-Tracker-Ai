@@ -8,12 +8,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.components.CustomBarChart
-import com.example.ui.components.GlassmorphicCard
+import com.example.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,12 +40,19 @@ fun ReportsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Reports & Analytics",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                Column {
+                    Text(
+                        text = "Reports & Analytics 📊",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Comprehensive performance & behavioral insights",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 IconButton(
                     onClick = { showExportDialog = true },
@@ -68,49 +75,88 @@ fun ReportsScreen(
             }
         }
 
-        // Key Performance Indicators Card
+        // Circular Gauge KPI Card
         item {
             GlassmorphicCard {
-                Text("$selectedTimeframe Life Metrics", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Spacer(modifier = Modifier.height(12.dp))
-
                 Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column {
-                        Text("Tasks Done", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$taskCount Tasks", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("$selectedTimeframe Efficiency Score", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("• $taskCount Tasks completed", fontSize = 12.sp, color = Color(0xFF1E88E5))
+                        Text("• $$expenseTotal total logged expenses", fontSize = 12.sp, color = Color(0xFFFB8C00))
+                        Text("• $habitStreakMax days top habit streak", fontSize = 12.sp, color = Color(0xFF43A047))
                     }
-                    Column {
-                        Text("Total Expense", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$$expenseTotal", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    }
-                    Column {
-                        Text("Top Habit Streak", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$habitStreakMax Days", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+
+                    CircularProgressGauge(
+                        progressPercent = 84,
+                        activeColor = Color(0xFF1E88E5),
+                        modifier = Modifier.size(90.dp)
+                    )
+                }
+            }
+        }
+
+        // Weekly Line Chart
+        item {
+            GlassmorphicCard {
+                Text("Weekly Focus & Energy Trend Line", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                val sampleLineData = listOf(
+                    "Mon" to 65f,
+                    "Tue" to 82f,
+                    "Wed" to 78f,
+                    "Thu" to 92f,
+                    "Fri" to 88f,
+                    "Sat" to 70f,
+                    "Sun" to 95f
+                )
+
+                WeeklyLineChart(dataPoints = sampleLineData, lineColor = Color(0xFF1E88E5))
+            }
+        }
+
+        // Expense Pie Chart & Breakdown
+        item {
+            GlassmorphicCard {
+                Text("Expense Distribution Breakdown", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    CustomPieChart(
+                        slices = listOf(
+                            PieChartSlice("Food", 450.0, Color(0xFFFB8C00)),
+                            PieChartSlice("Bills", 1200.0, Color(0xFFE53935)),
+                            PieChartSlice("Shopping", 350.0, Color(0xFF8E24AA)),
+                            PieChartSlice("Health", 250.0, Color(0xFF43A047))
+                        ),
+                        modifier = Modifier.size(130.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        LegendItem("Bills & Utilities", "$1,200", Color(0xFFE53935))
+                        LegendItem("Food & Dining", "$450", Color(0xFFFB8C00))
+                        LegendItem("Shopping", "$350", Color(0xFF8E24AA))
+                        LegendItem("Health & Wellness", "$250", Color(0xFF43A047))
                     }
                 }
             }
         }
 
-        // Productivity Trend Bar Chart
+        // Habit Heatmap (GitHub Style)
         item {
             GlassmorphicCard {
-                Text("Daily Activity Consistency", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val sampleData = listOf(
-                    "Mon" to 75f,
-                    "Tue" to 88f,
-                    "Wed" to 60f,
-                    "Thu" to 95f,
-                    "Fri" to 82f,
-                    "Sat" to 70f,
-                    "Sun" to 90f
-                )
-
-                CustomBarChart(dataPoints = sampleData)
+                HabitContributionGraph()
             }
         }
     }
@@ -118,7 +164,7 @@ fun ReportsScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text("Export Summary Report") },
+            title = { Text("Export Analytics Summary") },
             text = {
                 Text("Your $selectedTimeframe Life Report has been generated cleanly as a text summary. You can copy or save it to your records.")
             },
@@ -133,5 +179,15 @@ fun ReportsScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun LegendItem(label: String, value: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(shape = MaterialTheme.shapes.extraSmall, color = color, modifier = Modifier.size(10.dp)) {}
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = "$label: ", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(text = value, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

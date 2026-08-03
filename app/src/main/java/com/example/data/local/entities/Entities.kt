@@ -3,6 +3,14 @@ package com.example.data.local.entities
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Entity(tableName = "categories")
+data class CategoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val colorHex: String = "#3B82F6",
+    val iconName: String = "Folder"
+)
+
 @Entity(tableName = "tasks")
 data class TaskEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -11,6 +19,7 @@ data class TaskEntity(
     val isCompleted: Boolean = false,
     val priority: String = "Medium", // High, Medium, Low
     val category: String = "Personal", // Work, Personal, Health, Finance, Study, etc.
+    val categoryId: Long = 1L,
     val dueDate: Long = System.currentTimeMillis(),
     val reminderTime: Long = 0,
     val isRecurring: Boolean = false,
@@ -113,4 +122,14 @@ data class UserProfileEntity(
     val dailyStepGoal: Int = 10000,
     val monthlyBudget: Double = 3000.0,
     val avatarId: Int = 1
+)
+
+@Entity(tableName = "user_stats")
+data class UserStatsEntity(
+    @PrimaryKey val id: Int = 1,
+    val totalXp: Int = 2450,
+    val level: Int = 5,
+    val coins: Int = 450,
+    val streakDays: Int = 21,
+    val updatedAt: Long = System.currentTimeMillis()
 )
